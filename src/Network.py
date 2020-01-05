@@ -208,6 +208,28 @@ class Network(BaseNeuralNetwork):
 
             return output
 
+    #######################################
+    # added for BERT
+    import numpy
+    import pandas as pd
+    import os
+    from tqdm import tqdm, trange
+    import pickle
+    import gc
+    MAXLEN = 250
+
+    from pytorch_pretrained_bert import BertTokenizer
+    from pytorch_pretrained_bert.modeling import BertModel
+    BERT_FP = 'bert-base-multilingual-uncased'
+
+    def get_bert_embed_matrix():
+        bert = BertModel.from_pretrained(BERT_FP)
+        bert_embeddings = list(bert.children())[0]
+        bert_word_embeddings = list(bert_embeddings.children())[0]
+        mat = bert_word_embeddings.weight.data.numpy()
+        return mat
+
+    #######################################
     def _build_embedding_layer(self):
         """
         Build the embedding layer and attach it to the word input.
@@ -231,12 +253,15 @@ class Network(BaseNeuralNetwork):
                     # Hardcoded 300 dimensional embeddings if no pre-trained embeddings are used
                     shape=[len(self.config.word2idx), 300]
                 )
-
-            self._embeddings_layer = tf.nn.embedding_lookup(
-                embeddings_variable,
-                self._input_word,
-                name="word_embeddings"
-            )
+            embedding_matrix = get_bert_embed_matrix()
+            words = Input(shape=(MAXLEN,))
+            x = Embedding(*embedding_matrix.shape, weights=[embedding_matrix], trainable=False)(words)
+            self._embeddings_layer = x
+            # self._embeddings_layer = tf.nn.embedding_lookup(
+            #     embeddings_variable,
+            #     self._input_word,
+            #     name="word_embeddings"
+            # )
 
         if self.config.character_level_information:
             logger.debug("Concatenating word and character-level information")
