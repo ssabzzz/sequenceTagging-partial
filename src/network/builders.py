@@ -8,31 +8,7 @@ from keras.activations import softmax
 from config.ExperimentConfig import ExperimentConfig
 from config.TaskConfig import TaskConfig
 from constants import CLASSIFIER_SOFTMAX
-#######################################
-#added for BERT
-import numpy
-import pandas as pd
-import os
-from tqdm import tqdm, trange
-from sklearn.metrics import roc_auc_score
-import pickle
-import gc
-BERT_MODEL = 'bert-base-uncased'
-CASED = 'uncased' in BERT_MODEL
-TEXT_COL = 'comment_text'
-MAXLEN = 250
 
-from pytorch_pretrained_bert import BertTokenizer
-from pytorch_pretrained_bert.modeling import BertModel
-BERT_FP = 'bert-base-multilingual-uncased'
-
-def get_bert_embed_matrix():
-    bert = BertModel.from_pretrained(BERT_FP)
-    bert_embeddings = list(bert.children())[0]
-    bert_word_embeddings = list(bert_embeddings.children())[0]
-    mat = bert_word_embeddings.weight.data.numpy()
-    return mat
-#######################################
 
 def terminate_task(shared_layer_output, task):
     """Terminate Task
@@ -58,6 +34,7 @@ def terminate_task(shared_layer_output, task):
             activation=hidden_layer_config.activation,
             name="hidden_%s_%d" % (task.name, i + 1)
         )(input_layer)
+
 
     if task.classifier == CLASSIFIER_SOFTMAX:
         # Add softmax layer
@@ -98,15 +75,12 @@ def build_embeddings_layer(config, trainable=False):
             mask_zero=True,
             trainable=trainable
         )
-    embedding_matrix = get_bert_embed_matrix()
-    words = Input(shape=(MAXLEN,))
-    x = Embedding(*embedding_matrix.shape, weights=[embedding_matrix], trainable=False)(words)
-    return x
+
     # Using pre-trained embeddings
-    # return Embedding(
-    #     input_dim=config.vocab_size,
-    #     output_dim=config.embedding_size,
-    #     mask_zero=True,
-    #     weights=[config.embedding_weights],
-    #     trainable=trainable
-    # )
+    return Embedding(
+        input_dim=config.vocab_size,
+        output_dim=config.embedding_size,
+        mask_zero=True,
+        weights=[config.embedding_weights],
+        trainable=trainable
+    )
